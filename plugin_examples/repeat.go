@@ -3,22 +3,45 @@
 * will echo all arguments passed to it. The flag -uppercase will upcase the
 * arguments passed to the command. The help flag will print the usage text for
 * this command and exit, ignoring any other arguments passed.
-*/
+ */
 package main
 
 import (
 	"flag"
-	"strings"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/cloudfoundry/cli/plugin"
 )
 
 type RepeatParams struct {
-	help      *bool
-	dryrun 		*bool
+	help   *bool
+	dryrun *bool
 }
+
+var permitted_cmds = []string{
+	"app",
+	"bind-service",
+	"delete",
+	"e",
+	"env",
+	"events",
+	"files",
+	"logs",
+	"map-route",
+	"push",
+	"restage",
+	"restart",
+	"scale",
+	"se",
+	"set-env",
+	"stacks",
+	"start",
+	"stop",
+	"unbind-service",
+	"unmap-route",
+	"unset-env"}
 
 func main() {
 	plugin.Start(new(RepeatParams))
@@ -48,19 +71,24 @@ func (repeatParams *RepeatParams) Run(cliConnection plugin.CliConnection, args [
 	var apps_string string = echoFlagSet.Args()[1]
 	cmd_args := echoFlagSet.Args()[2:]
 
+	if !contains(permitted_cmds, cmd) {
+		fmt.Println("Please use a permitted command: \n" + strings.Join(permitted_cmds, "\n"))
+		os.Exit(1)
+	}
+
 	apps_string = strings.TrimPrefix(apps_string, "[")
 	apps_string = strings.TrimSuffix(apps_string, "]")
 
-	apps := strings.Split(apps_string,",")
+	apps := strings.Split(apps_string, ",")
 
 	for i := 0; i < len(apps); i++ {
 		itemToEcho = cmd + " " + apps[i] + " " + strings.Join(cmd_args, " ")
-		
+
 		if *dryrun {
 			fmt.Println("Repeat will run \"cf " + itemToEcho + "\"")
 			continue
 		}
-		
+
 		fmt.Println("Starting to run \"" + itemToEcho + "\" ...")
 
 		commands := make([]string, len(cmd_args)+2)
@@ -72,7 +100,7 @@ func (repeatParams *RepeatParams) Run(cliConnection plugin.CliConnection, args [
 		if err != nil {
 			fmt.Println("PLUGIN ERROR: Error from CliCommand: ", err)
 		} else {
-		fmt.Println("OUTPUT: \n", output)
+			fmt.Println("OUTPUT: \n", output)
 		}
 		fmt.Println("\n")
 	}
@@ -106,4 +134,13 @@ func printHelp() {
 	EXAMPLE:
 	cf repeat map-route [production-blue,production-green] cfapps.io -n donottarget
 	`)
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
